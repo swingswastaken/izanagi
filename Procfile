@@ -1,1 +1,1 @@
-worker: coinflips.py
+worker: izanagi.py
