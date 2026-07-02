@@ -64,7 +64,6 @@ class CharacterCreateModalStep2(discord.ui.Modal, title="Create Character (2/2)"
         self.partial_data = partial_data
 
     async def on_submit(self, interaction: discord.Interaction):
-
         success, result = submit_character_service(
             user_id=str(interaction.user.id),
             name=self.partial_data["name"],
@@ -81,10 +80,15 @@ class CharacterCreateModalStep2(discord.ui.Modal, title="Create Character (2/2)"
             await interaction.response.send_message(result, ephemeral=True)
             return
 
+        channel = await self.bot.fetch_channel(1522281815031808364)
+        embed = discord.Embed(title=f"Character Submission: {result['name']}", color=discord.Color.orange())
+        
+        view = CharacterApprovalView(result["pending_id"])
+        await channel.send(embed=embed, view=view)
+
         await interaction.response.send_message(
             f"Character **{result['name']}** submitted for review.",
-            ephemeral=True
-        )
+            ephemeral=True)
 
 class CharacterCreateModalStep1(discord.ui.Modal, title="Create Character (1/2)"):
 
