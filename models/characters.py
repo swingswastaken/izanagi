@@ -17,7 +17,6 @@ def get_character(character_id: int):
         .table("characters")
         .select("*")
         .eq("character_id", character_id)
-        .single()
         .execute()
     )
 

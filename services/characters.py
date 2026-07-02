@@ -1,10 +1,12 @@
 from models import characters as character_model
+from models import users as user_model
 from utils.constants import MAX_CHARACTERS
 from models import pending_characters as pending_model
 
 
 def submit_character_service(
     user_id: str,
+    username: str,
     name: str,
     race: str,
     age: int,
@@ -14,6 +16,13 @@ def submit_character_service(
     backstory: str,
     image_url: str,
 ):
+    user = user_model.get_user(user_id)
+
+    if not user:
+        created = user_model.create_user(user_id, username)
+
+        if not created:
+            return False, "Failed to create user."
     characters = character_model.get_characters(user_id)
 
     if len(characters) >= MAX_CHARACTERS:
@@ -100,6 +109,14 @@ def reject_character_service(pending_id: int):
 
 def get_user_characters_service(user_id: str):
     return character_model.get_characters(user_id)
+
+def get_character_service(character_id: int):
+    character = character_model.get_character(character_id)
+
+    if not character:
+        return None
+
+    return character[0] if isinstance(character, list) else character
 
 def get_pending_characters_service(user_id: str):
     return pending_model.get_pending_characters(user_id)

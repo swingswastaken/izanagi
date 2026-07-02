@@ -11,6 +11,16 @@ def get_pending_characters(user_id: str):
 
     return response.data
 
+def get_pending_by_id(pending_id: int):
+    response = (
+        supabase
+        .table("pending_characters")
+        .select("*")
+        .eq("pending_id", pending_id)
+        .execute()
+    )
+
+    return response.data
 
 def create_pending_character(
     user_id: str,
