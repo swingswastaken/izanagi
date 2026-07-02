@@ -31,15 +31,23 @@ def submit_character_service(
         image_url=image_url,
     )
 
-    return True, pending[0]
+    if not pending:
+        return False, "Failed to create pending character."
+
+    if isinstance(pending, list):
+        pending = pending[0]
+
+    return True, pending
 
 
 def approve_character_service(pending_id: int):
     pending = pending_model.get_pending_by_id(pending_id)
+
     if not pending:
         return False, "Pending character not found."
 
-    pending = pending[0]
+    if isinstance(pending, list):
+        pending = pending[0]
 
     if pending.get("is_processing"):
         return False, "Already being processed."
@@ -59,9 +67,15 @@ def approve_character_service(pending_id: int):
             image_url=pending["image_url"],
         )
 
+        if not created:
+            return False, "Failed to create character."
+
+        if isinstance(created, list):
+            created = created[0]
+
         pending_model.delete_pending_character(pending_id)
 
-        return True, created[0]
+        return True, created
 
     finally:
         pending_model.set_processing(pending_id, False)
@@ -71,7 +85,7 @@ def reject_character_service(pending_id: int):
     if not pending:
         return False, "Pending character not found."
 
-    pending = pending[0]
+    pending = pending[0] if isinstance(pending, list) else pending
 
     if pending.get("is_processing"):
         return False, "Already being processed."

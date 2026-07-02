@@ -42,15 +42,56 @@ class CharacterApprovalView(discord.ui.View):
 
         await interaction.response.send_message("Character rejected.", ephemeral=True)
 
-class CharacterCreateModal(discord.ui.Modal, title="Create Character"):
+class Step2TriggerView(discord.ui.View):
+    def __init__(self, bot, partial_data):
+        super().__init__(timeout=60)
+        self.bot = bot
+        self.partial_data = partial_data
+
+    @discord.ui.button(label="Enter Background Info", style=discord.ButtonStyle.primary)
+    async def trigger_step2(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_modal(CharacterCreateModalStep2(self.bot, self.partial_data))
+
+class CharacterCreateModalStep2(discord.ui.Modal, title="Create Character (2/2)"):
+
+    appearance = discord.ui.TextInput(label="Appearance", style=discord.TextStyle.paragraph, max_length=1000)
+    personality = discord.ui.TextInput(label="Personality", style=discord.TextStyle.paragraph, max_length=1000)
+    backstory = discord.ui.TextInput(label="Backstory", style=discord.TextStyle.paragraph, max_length=2000)
+
+    def __init__(self, bot, partial_data):
+        super().__init__()
+        self.bot = bot
+        self.partial_data = partial_data
+
+    async def on_submit(self, interaction: discord.Interaction):
+
+        success, result = submit_character_service(
+            user_id=str(interaction.user.id),
+            name=self.partial_data["name"],
+            race=self.partial_data["race"],
+            age=int(self.partial_data["age"]),
+            gender=self.partial_data["gender"],
+            appearance=self.appearance.value,
+            personality=self.personality.value,
+            backstory=self.backstory.value,
+            image_url=self.partial_data["image_url"],
+        )
+
+        if not success:
+            await interaction.response.send_message(result, ephemeral=True)
+            return
+
+        await interaction.response.send_message(
+            f"Character **{result['name']}** submitted for review.",
+            ephemeral=True
+        )
+
+class CharacterCreateModalStep1(discord.ui.Modal, title="Create Character (1/2)"):
 
     name = discord.ui.TextInput(label="Name", max_length=20)
     race = discord.ui.TextInput(label="Race", max_length=20)
     age = discord.ui.TextInput(label="Age", max_length=5)
     gender = discord.ui.TextInput(label="Gender", max_length=20)
-    appearance = discord.ui.TextInput(label="Appearance", style=discord.TextStyle.paragraph, max_length=1000)
-    personality = discord.ui.TextInput(label="Personality", style=discord.TextStyle.paragraph, max_length=1000)
-    backstory = discord.ui.TextInput(label="Backstory", style=discord.TextStyle.paragraph, max_length=2000)
     image_url = discord.ui.TextInput(label="Image URL", required=False)
 
     def __init__(self, bot):
@@ -58,57 +99,33 @@ class CharacterCreateModal(discord.ui.Modal, title="Create Character"):
         self.bot = bot
 
     async def on_submit(self, interaction: discord.Interaction):
+        # Save the partial data in a temporary storage (a dict in your Cog)
+        # For this example, we just send a message with a button
+        
+        data = {
+            "name": self.name.value,
+            "race": self.race.value,
+            "age": self.age.value,
+            "gender": self.gender.value,
+            "image_url": self.image_url.value or "",
+        }
 
-        success, result = submit_character_service(
-            user_id=str(interaction.user.id),
-            name=self.name.value,
-            race=self.race.value,
-            age=int(self.age.value),
-            gender=self.gender.value,
-            appearance=self.appearance.value,
-            personality=self.personality.value,
-            backstory=self.backstory.value,
-            image_url=self.image_url.value or "",
-        )
-
-        if not success:
-            await interaction.response.send_message(result, ephemeral=True)
-            return
-
-        embed = discord.Embed(
-            title=f"Character Submission: {result['name']}",
-            color=discord.Color.orange()
-        )
-
-        embed.add_field(name="User", value=f"<@{result['user_id']}>", inline=False)
-        embed.add_field(name="Race", value=result["race"], inline=True)
-        embed.add_field(name="Age", value=result["age"], inline=True)
-        embed.add_field(name="Gender", value=result["gender"], inline=True)
-
-        embed.add_field(name="Appearance", value=result["appearance"], inline=False)
-        embed.add_field(name="Personality", value=result["personality"], inline=False)
-        embed.add_field(name="Backstory", value=result["backstory"], inline=False)
-
-        if result.get("image_url"):
-            embed.set_image(url=result["image_url"])
-
-        channel = await self.bot.fetch_channel(1522281815031808364)
-        view = CharacterApprovalView(result["pending_id"])
-        await channel.send(embed=embed, view=view)
-
+        # Send a followup message with a button to open the 2nd Modal
+        # We need a View that contains a button to trigger Step 2
+        view = Step2TriggerView(self.bot, data)
         await interaction.response.send_message(
-            f"Character **{result['name']}** submitted for review.",
+            "Basic info saved! Click the button below to finish your character.", 
+            view=view, 
             ephemeral=True
         )
-
 
 class Character(commands.GroupCog, name="character"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @app_commands.command(name="create")
+    @app_commands.command(name="create", description="Create a new character.")
     async def create(self, interaction: discord.Interaction):
-        await interaction.response.send_modal(CharacterCreateModal(self.bot))
+        await interaction.response.send_modal(CharacterCreateModalStep1(self.bot))
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Character(bot))
